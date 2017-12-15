@@ -10,9 +10,9 @@ public class Main {
         // write your code here
 
         // initialize CHIP-8 emulation core
-        Chip8 chip8 = new Chip8();
+        Chip8 myChip8 = new Chip8();
 
-        chip8.initialize();
+        myChip8.initialize();
 
         JFileChooser chooser = new JFileChooser();
 //        FileNameExtensionFilter filter = new FileNameExtensionFilter(
@@ -23,14 +23,21 @@ public class Main {
             System.out.println("You chose to open this file: " +
                     chooser.getSelectedFile().getName());
 
-            chip8.load(
+            myChip8.load(
                     FileSystems.getDefault().getPath(
                     chooser.getSelectedFile().getAbsolutePath()));
         }
 
         // main emulation loop
         while(true) {
-            chip8.tick();
+            myChip8.tick();
+
+            // If the draw flag is set, update the screen
+            if(myChip8.drawFlag)
+                drawGraphics();
+
+            // Store key press state (Press and Release)
+            myChip8.setKeys();
         }
     }
 }
