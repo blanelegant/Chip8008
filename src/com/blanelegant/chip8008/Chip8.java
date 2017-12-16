@@ -3,6 +3,7 @@ package com.blanelegant.chip8008;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
 
 /**
  * This is the main instruction interpreter for the chip8008 emulator.
@@ -71,7 +72,7 @@ public class Chip8 {
     /**
      * This method will be called for every clock cycle of the CPU we want to emulate.
      */
-    void tick() {
+    void tick() throws UnknownOpcodeException {
         // fetch next opcode
         current_instruction = (char) ((memory[program_counter] << 8) | memory[program_counter + 1]);
 
@@ -102,17 +103,18 @@ public class Chip8 {
             case 0x2000: // 2NNN: Calls subroutine at NNN.
                 op2NNN();
                 break;
-                    
-            case 0x3000: // 3XNN: Skips the next instruction if VX = NN.
+
+            // 3XNN: Skips the next instruction if VX = NN.
+            case 0x3000:
                 op3XNN();
                 break;
                 
             case 0x4000: // 4XNN: Skips the next instruction if VX != NN.
-                op4xNN();
+                op4XNN();
                 break;
 
-            case 0x5000: // 5xNN: Skips the next instruction if VX = VY.
-                op5XNN();
+            case 0x5000: // 5XY0: Skips the next instruction if VX = VY.
+                op5XY0();
                 break;
 
             case 0x6000: // 6XNN: Sets VX to NN.
@@ -181,7 +183,7 @@ public class Chip8 {
                 opCXNN();
                 break;
 
-            case 0xD000: // DXYN:Draws a sprite at coorinate (VX, VY) with a width of 8 pix, and a height of N pix.
+            case 0xD000: // DXYN:Draws a sprite at coordinate (VX, VY) with a width of 8 pix, and a height of N pix.
                 opDXYN();
                 break;
 
@@ -200,7 +202,7 @@ public class Chip8 {
             }
                 break;
 
-            case 0xF000
+            case 0xF000:
 
                 // possible ending nibbles: 07, 0A,
                 switch(current_instruction & 0x00FF) {
@@ -242,8 +244,7 @@ public class Chip8 {
                         break;
 
                     default:
-                        throw new Exception("Invalid opcode!");
-                        break;
+                        throw new UnknownOpcodeException();
                 }
                 break;
         }
@@ -273,10 +274,10 @@ public class Chip8 {
     }
 
     /**
-     * 00E0: Clears the screen.
+     * Clears the screen.
      */
-    private void op00E() {
-
+    private void op00E0() {
+        // TODO: graphics code to clear the screen goes here
     }
 
     /**
@@ -290,7 +291,7 @@ public class Chip8 {
      * // 1NNN: Jumps to address NNN.
      */
     private void op1NNN() {
-        program_counter = (current_instruction & 0x0FFF);
+        program_counter = (char)(current_instruction & 0x0FFF);
     }
 
     /***
@@ -298,9 +299,9 @@ public class Chip8 {
      */
     private void op2NNN() {
         // put current pc on the stack
-        stack[stack_pointer] = program_counter + 1;
+        stack[stack_pointer] = (char) (program_counter + 1);
         stack_pointer++;
-        program_counter = (current_instruction & 0x0FFF);
+        program_counter = (char) ((current_instruction & 0x0FFF));
     }
 
     /***
@@ -309,7 +310,7 @@ public class Chip8 {
      * (Usually the next instruction is a jump to skip a code block)
      */
     private void op3XNN() {
-        char immediate = (current_instruction & 0x00FF);
+        char immediate = (char)(current_instruction & 0x00FF);
         
         if ((register[(current_instruction & 0x0F00) >>> 8]) == immediate)
             program_counter++;
@@ -335,8 +336,8 @@ public class Chip8 {
      * Sets VX to the value of VY.
      */
     private void op8XY0() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
         register[x] = register[y];
     }
@@ -345,30 +346,30 @@ public class Chip8 {
      * Sets VX to VX or VY. (Bitwise OR operation)
      */
     private void op8XY1() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[x] = (register[x] | register[y]);
+        register[x] = (char) (register[x] | register[y]);
     }
 
     /***
      * Sets VX to VX and VY. (Bitwise AND operation)
      */
     private void op8XY2() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[x] = (register[x] & register[y]);
+        register[x] = (char) (register[x] & register[y]);
     }
 
     /**
      * Sets VX to VX xor VY. (Bitwise XOR operation)
      */
     private void op8XY3() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[x] = (register[x] ^ register[y]);
+        register[x] = (char) (register[x] ^ register[y]);
 
     }
 
@@ -377,33 +378,33 @@ public class Chip8 {
      * VF is set to 1 when there's a carry, and to 0 when there isn't.
      */
     private void op8XY4() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        char sum = (register[x] + register[y]); // sum
+        char sum = (char) (register[x] + register[y]); // sum
 
         // set carry register
         if ((sum & 0xFF00) != 0) {
-            register[0xF] = 1
+            register[0xF] = 0x1;
         } else {
-            register[0xF] = 0;
+            register[0xF] = 0x0;
         }
 
-        register[x] = sum & 0x00FF; // Removes any overflow.
+        register[x] = (char) (sum & 0x00FF); // Removes any overflow.
     }
 
     /**
      *VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
      */
     private void op8XY5() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        char difference = (register[x] - register[y]); // Difference
+        char difference = (char) (register[x] - register[y]); // Difference
 
         // Set borrow register.
         if ((difference & 0xFF00) != 0) {
-            register[0xF] = 1
+            register[0xF] = 1;
         } else {
             register[0xF] = 0;
         }
@@ -414,22 +415,22 @@ public class Chip8 {
      */
 
     private void op8XY6() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[0xF] = (register[y] & 0x0001); // Set flag.
+        register[0xF] = (char) (register[y] & 0x0001); // Set flag.
 
-        register[x] = register[y] >>> 1; // Right shift y set to x.
+        register[x] = (char) (register[y] >>> 1); // Right shift y set to x.
     }
 
     /**
      * Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
      */
     private void op8XY7() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[x] = (register[y] - register[x]);
+        register[x] = (char) (register[y] - register[x]);
 
         // Implement borrow flag.
     }
@@ -439,20 +440,20 @@ public class Chip8 {
      *  the shift.
      */
     private void op8XYE() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
-        register[0xF] = (register[y] & 0x0080); // Set flag.
+        register[0xF] = (char) (register[y] & 0x0080); // Set flag.
 
-        register[x] = (register[y] << 1); // Left shift by one.
+        register[x] = (char) (register[y] << 1); // Left shift by one.
     }
 
     /**
      *Skips the next instruction if VX doesn't equal VY.
      */
     private void op9XY0() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
 
         if (register[x] != register[y]) {
 
@@ -464,26 +465,26 @@ public class Chip8 {
      *Sets I to the address NNN.
      */
     private void opANNN() {
-        index = (current_instruction & 0x0FFF);
+        index = (char) (current_instruction & 0x0FFF);
     }
 
     /**
      * Jumps to the address NNN plus V0.
      */
     private void opBNNN() {
-        program_counter = register[0x0] + (current_instruction & 0x0FFF);
+        program_counter = (char) (register[0x0] + (current_instruction & 0x0FFF));
     }
 
     /**
      *Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
      */
     private void opCXNN() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char immediate = current_instruction & 0x00FF;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char immediate = (char) (current_instruction & 0x00FF);
 
         Random random = new Random();
 
-        register[x] = random.nextInt(255) & immediate;
+        register[x] = (char) (random.nextInt(255) & immediate);
     }
 
     /**
@@ -493,13 +494,14 @@ public class Chip8 {
      * sprite is drawn, and to 0 if that doesn’t happen
      */
     private void opDXYN() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char y = (current_instruction & 0x00F0) >>> 4;
-        char immediate = current_instruction & 0x000F;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char y = (char) ((current_instruction & 0x00F0) >>> 4);
+        char immediate = (char) (current_instruction & 0x000F);
 
-        graphics(register[x], register[y], immediate);
+        // TODO: implement graphics code that draws pixels here
+//        graphics(register[x], register[y], immediate);
 
-        // Todo: Set register[F] to 1 if pixels are flipped from set to unset, 0 if not.
+        // TODO: Set register[F] to 1 if pixels are flipped from set to unset, 0 if not.
     }
 
     /**
@@ -509,23 +511,34 @@ public class Chip8 {
         // Come back to when UI.
     }
 
+    /**
+     * Skips the next instruction if the key stored in VX isn't pressed.
+     * (Usually the next instruction is a jump to skip a code block)
+     */
     private void opEXA1() {
-
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
     }
 
+    /**
+     * Sets VX to the value of the delay timer.
+     */
     private void opFX07() {
-        
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
     }
 
+    /**
+     * 	A key press is awaited, and then stored in VX.
+     * 	(Blocking Operation. All instruction halted until next key event)
+     */
     private void opFX0A() {
-        
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
     }
 
     /**
      * Sets the delay timer to VX.
      */
     private void opFX15() {
-        char x = (current_instruction & 0x0F00) >>> 8;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
 
         delay_timer = register[x];
     }
@@ -534,7 +547,8 @@ public class Chip8 {
      * Sets the sound timer to VX.
      */
     private void opFX18() {
-        char x = (current_instruction & 0x0F00) >>> 8;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+
         sound_timer = register[x];
     }
 
@@ -542,40 +556,55 @@ public class Chip8 {
      * Adds VX to I.
      */
     private void opFX1E() {
-        char x = (current_instruction & 0x0F00) >>> 8;
-        char sum = (register[x] + index) & 0x00FF;
-        index = sum;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
+        char sum = (char) ((register[x] + index) & 0x00FF);
+
+        index = (char) (sum & 0x00FF); // chop off first 8 bits
     }
 
+    /**
+     * 	Sets I to the location of the sprite for the character in VX.
+     * 	Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+     */
     private void opFX29() {
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
 
+        // TODO: implement pointers to location of letters
     }
 
+    /**
+     * Stores the binary-coded decimal representation of VX, with the most
+     * significant of three digits at the address in I, the middle digit at
+     * I plus 1, and the least significant digit at I plus 2. (In other words,
+     * take the decimal representation of VX, place the hundreds digit in memory
+     * at location in I, the tens digit at location I+1, and the ones digit at
+     * location I+2.)
+     */
     private void opFX33() {
-        
+        // TODO: implement this monstrous beast
     }
 
     /**
      *Stores V0 to VX (including VX) in memory starting at address I. I is increased by 1 for each value written.
      */
     private void opFX55() {
-        char x = (current_instruction & 0x0F00) >>> 8;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
 
-        for (int i = 0, i <= x, i++) {
-            memory[index] = register[i];
-            index++;
+        for (int i = 0; i <= x; i++) {
+            memory[index] = register[i]; // copy register to memory location
+            index++; // increment index pointer
         }
     }
 
     /**
-     * Fills V0 to VX (including VX) with values from memory starting at address I. I is increased by 1 for each value
-     * written.
+     * Fills V0 to VX (including VX) with values from memory starting at
+     * address I. I is increased by 1 for each value written.
      */
     private void opFX65() {
-        char x = (current_instruction & 0x0F00) >>> 8;
+        char x = (char) ((current_instruction & 0x0F00) >>> 8);
 
-        for (int i = 0, i <= x, i++) {
-            register[i] = memory[index];
+        for (int i = 0; i <= x; i++) {
+            register[i] = memory[index]; // copy value at memory location to register
             index++;
         }
     }

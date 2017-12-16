@@ -6,7 +6,7 @@ import java.nio.file.Path;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         // write your code here
 
         // initialize CHIP-8 emulation core
@@ -14,30 +14,19 @@ public class Main {
 
         myChip8.initialize();
 
-        JFileChooser chooser = new JFileChooser();
-//        FileNameExtensionFilter filter = new FileNameExtensionFilter(
-//                "JPG & GIF Images", "jpg", "gif");
-//        chooser.setFileFilter(filter);
-        int returnVal = chooser.showOpenDialog(null);
-        if (returnVal == JFileChooser.APPROVE_OPTION) {
-            System.out.println("You chose to open this file: " +
-                    chooser.getSelectedFile().getName());
-
-            myChip8.load(
-                    FileSystems.getDefault().getPath(
-                    chooser.getSelectedFile().getAbsolutePath()));
-        }
+        UI.launch(args); // launch main UI
 
         // main emulation loop
         while(true) {
             myChip8.tick();
 
             // If the draw flag is set, update the screen
-            if(myChip8.drawFlag)
-                drawGraphics();
+            if(myChip8.drawFlag) {
+                UI.updateScreen();
+            }
 
             // Store key press state (Press and Release)
-            myChip8.setKeys();
+//            myChip8.setKeys();
         }
     }
 }
