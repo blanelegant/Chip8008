@@ -499,7 +499,13 @@ public class Chip8 {
         char immediate = (char) (current_instruction & 0x000F);
 
         // TODO: implement graphics code that draws pixels here
-//        graphics(register[x], register[y], immediate);
+        for (int row = 0; row < 8; row++) {
+            for (int column = 0; column < immediate; column++) {
+               graphics[(row * 64) + column] = (char) (memory[index + row] & (0x0F << (8 - row)));
+            }
+        }
+
+        this.drawFlag = true;
 
         // TODO: Set register[F] to 1 if pixels are flipped from set to unset, 0 if not.
     }
